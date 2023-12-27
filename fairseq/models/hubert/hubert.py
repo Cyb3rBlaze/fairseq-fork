@@ -258,8 +258,10 @@ class HubertModel(BaseFairseqModel):
             mode=cfg.extractor_mode,
             conv_bias=cfg.conv_bias,
         )
-        feature_ds_rate = np.prod([s for _, _, s in feature_enc_layers])
-        self.feat2tar_ratio = cfg.label_rate * feature_ds_rate / task_cfg.sample_rate
+        self.feature_ds_rate = np.prod([s for _, _, s in feature_enc_layers])
+        self.feat2tar_ratio = (
+            cfg.label_rate * self.feature_ds_rate / task_cfg.sample_rate
+        )
 
         self.post_extract_proj = (
             nn.Linear(self.embed, cfg.encoder_embed_dim)
@@ -464,6 +466,7 @@ class HubertModel(BaseFairseqModel):
         # x: (B, T, D), float
         # padding_mask: (B, T), bool
         # mask_indices: (B, T), bool
+
         x, _ = self.encoder(
             x,
             padding_mask=padding_mask,

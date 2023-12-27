@@ -22,11 +22,11 @@ def load_quantized_audio_from_file(file_path):
     return base_fname_batch, quantized_units_batch
 
 
-def synthesize_audio(model, waveglow, denoiser, inp, lab=None, strength=0.0):
+def synthesize_audio(model, waveglow, denoiser, inp, lab=None, strength=0.0, device="cpu"):
     assert inp.size(0) == 1
-    inp = inp.cuda()
+    inp = inp.to(device)
     if lab is not None:
-        lab = torch.LongTensor(1).cuda().fill_(lab)
+        lab = torch.LongTensor(1).to(device).fill_(lab)
 
     with torch.no_grad():
         _, mel, _, ali, has_eos = model.inference(inp, lab, ret_has_eos=True)
@@ -35,21 +35,24 @@ def synthesize_audio(model, waveglow, denoiser, inp, lab=None, strength=0.0):
     return mel, aud, aud_dn, has_eos
 
 
-def load_tacotron(tacotron_model_path, max_decoder_steps):
+def load_tacotron(tacotron_model_path, max_decoder_steps, device="cpu"):
     ckpt_dict = torch.load(tacotron_model_path)
     hparams = ckpt_dict["hparams"]
     hparams.max_decoder_steps = max_decoder_steps
     sr = hparams.sampling_rate
     model = Tacotron2(hparams)
     model.load_state_dict(ckpt_dict["model_dict"])
-    model = model.cuda().eval().half()
+    model = model.to(device).eval()
     return model, sr, hparams
 
 
-def load_waveglow(waveglow_path):
+def load_waveglow(waveglow_path, device="cpu", use_denoiser=False):
     waveglow = torch.load(waveglow_path)["model"]
-    waveglow = waveglow.cuda().eval().half()
+    waveglow = waveglow.to(device).eval()
     for k in waveglow.convinv:
         k.float()
-    denoiser = Denoiser(waveglow)
-    return waveglow, denoiser
+    if use_denoiser:
+        denoiser = Denoiser(waveglow)
+        return waveglow, denoiser
+    return waveglow, None
+        
